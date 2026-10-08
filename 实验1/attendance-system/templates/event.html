@@ -8,24 +8,31 @@
       <h1>{{ event.title }}</h1>
       <p class="lead">创建于 {{ event.created_at }}</p>
     </div>
-    <div class="count-box"><strong>{{ checkins|length }}</strong><span>已签到</span></div>
+    <div class="count-box"><strong>{{ total }}</strong><span>已签到</span></div>
   </div>
   <section class="card">
     <h2>提交签到</h2>
     <form class="form-grid" method="post" action="{{ url_for('checkin', event_id=event.id) }}">
-      <div><label for="student_id">学号</label><input id="student_id" name="student_id" maxlength="30" placeholder="例如：S001" required></div>
+      <div><label for="student_id">学号</label><input id="student_id" name="student_id" minlength="3" maxlength="30" pattern="[A-Za-z0-9-]+" placeholder="例如：S001" required></div>
       <div><label for="name">姓名</label><input id="name" name="name" maxlength="30" placeholder="例如：测试学生" required></div>
       <button type="submit">确认签到</button>
     </form>
-    <p class="hint">演示时请使用虚构学号和姓名。</p>
+    <p class="hint">每位同学在同一活动中只能签到一次。演示时请使用虚构学号和姓名。</p>
   </section>
   <section class="section-block">
-    <div class="section-heading"><h2>签到记录</h2><span>按最新时间排序</span></div>
+    <div class="section-heading"><h2>签到记录</h2><a class="text-link" href="{{ url_for('export_checkins', event_id=event.id) }}">导出 CSV ↓</a></div>
+    <form class="search-form" method="get" action="{{ url_for('event_detail', event_id=event.id) }}">
+      <label for="q">查询学号或姓名</label>
+      <input id="q" name="q" maxlength="30" value="{{ query }}" placeholder="输入学号或姓名关键字">
+      <button type="submit">查询</button>
+      {% if query %}<a class="clear-link" href="{{ url_for('event_detail', event_id=event.id) }}">清除</a>{% endif %}
+    </form>
+    {% if query %}<p class="result-note">“{{ query }}”找到 {{ checkins|length }} 条记录</p>{% endif %}
     {% if checkins %}
       <div class="table-wrap"><table>
         <thead><tr><th>学号</th><th>姓名</th><th>签到时间</th></tr></thead>
         <tbody>{% for item in checkins %}<tr><td>{{ item.student_id }}</td><td>{{ item.name }}</td><td>{{ item.checked_in_at }}</td></tr>{% endfor %}</tbody>
       </table></div>
-    {% else %}<p class="empty">暂无签到记录。</p>{% endif %}
+    {% else %}<p class="empty">{% if query %}没有匹配的签到记录。{% else %}暂无签到记录。{% endif %}</p>{% endif %}
   </section>
 {% endblock %}

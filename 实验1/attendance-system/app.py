@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import os
 import sqlite3
+import csv
+import io
 from datetime import datetime
 from pathlib import Path
 
-from flask import Flask, abort, flash, g, redirect, render_template, request, url_for
+from flask import Flask, Response, abort, flash, g, redirect, render_template, request, url_for
 
 
 def create_app(test_config: dict | None = None) -> Flask:
@@ -52,6 +54,8 @@ def create_app(test_config: dict | None = None) -> Flask:
                 name TEXT NOT NULL,
                 checked_in_at TEXT NOT NULL
             );
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_event_student
+                ON checkins(event_id, student_id);
             """
         )
         db.commit()
@@ -86,11 +90,24 @@ def create_app(test_config: dict | None = None) -> Flask:
         event = db.execute("SELECT * FROM events WHERE id = ?", (event_id,)).fetchone()
         if event is None:
             abort(404)
-        checkins = db.execute(
-            "SELECT student_id, name, checked_in_at FROM checkins WHERE event_id = ? ORDER BY id DESC",
-            (event_id,),
-        ).fetchall()
-        return render_template("event.html", event=event, checkins=checkins)
+        query = request.args.get("q", "").strip()[:30]
+        total = db.execute(
+            "SELECT COUNT(*) AS count FROM checkins WHERE event_id = ?", (event_id,)
+        ).fetchone()["count"]
+        if query:
+            pattern = f"%{query}%"
+            checkins = db.execute(
+                """SELECT student_id, name, checked_in_at FROM checkins
+                   WHERE event_id = ? AND (student_id LIKE ? OR name LIKE ?)
+                   ORDER BY id DESC""",
+                (event_id, pattern, pattern),
+            ).fetchall()
+        else:
+            checkins = db.execute(
+                "SELECT student_id, name, checked_in_at FROM checkins WHERE event_id = ? ORDER BY id DESC",
+                (event_id,),
+            ).fetchall()
+        return render_template("event.html", event=event, checkins=checkins, total=total, query=query)
 
     @app.post("/events/<int:event_id>/checkin")
     def checkin(event_id: int):
@@ -98,19 +115,52 @@ def create_app(test_config: dict | None = None) -> Flask:
         event = db.execute("SELECT id FROM events WHERE id = ?", (event_id,)).fetchone()
         if event is None:
             abort(404)
-        student_id = request.form.get("student_id", "").strip()
+        student_id = request.form.get("student_id", "").strip().upper()
         name = request.form.get("name", "").strip()
-        if not (1 <= len(student_id) <= 30 and 1 <= len(name) <= 30):
-            flash("学号和姓名均须为 1 至 30 个字符。", "error")
+        if not (3 <= len(student_id) <= 30 and all(c.isascii() and (c.isalnum() or c == "-") for c in student_id)):
+            flash("学号须为 3 至 30 位英文字母、数字或连字符。", "error")
+            return redirect(url_for("event_detail", event_id=event_id))
+        if not (1 <= len(name) <= 30):
+            flash("姓名须为 1 至 30 个字符。", "error")
             return redirect(url_for("event_detail", event_id=event_id))
         now = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S %z")
-        db.execute(
-            "INSERT INTO checkins (event_id, student_id, name, checked_in_at) VALUES (?, ?, ?, ?)",
-            (event_id, student_id, name, now),
-        )
-        db.commit()
+        try:
+            db.execute(
+                "INSERT INTO checkins (event_id, student_id, name, checked_in_at) VALUES (?, ?, ?, ?)",
+                (event_id, student_id, name, now),
+            )
+            db.commit()
+        except sqlite3.IntegrityError:
+            db.rollback()
+            flash("该学号在本活动中已经签到，请勿重复提交。", "error")
+            return redirect(url_for("event_detail", event_id=event_id))
         flash("签到成功。", "success")
         return redirect(url_for("event_detail", event_id=event_id))
+
+    @app.get("/events/<int:event_id>/export.csv")
+    def export_checkins(event_id: int):
+        db = get_db()
+        event = db.execute("SELECT id FROM events WHERE id = ?", (event_id,)).fetchone()
+        if event is None:
+            abort(404)
+        rows = db.execute(
+            "SELECT student_id, name, checked_in_at FROM checkins WHERE event_id = ? ORDER BY id",
+            (event_id,),
+        ).fetchall()
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["学号", "姓名", "签到时间"])
+        for row in rows:
+            # A leading apostrophe keeps spreadsheet programs from interpreting a name as a formula.
+            name = row["name"]
+            if name.startswith(("=", "+", "-", "@")):
+                name = "'" + name
+            writer.writerow([row["student_id"], name, row["checked_in_at"]])
+        return Response(
+            "\ufeff" + output.getvalue(),
+            mimetype="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="attendance-event-{event_id}.csv"'},
+        )
 
     return app
 

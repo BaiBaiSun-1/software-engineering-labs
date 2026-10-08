@@ -17,17 +17,17 @@
 - Git + GitHub
 - Codex
 
-## 计划目录
+## 目录
 
 ```text
 实验1/
-├─ attendance-system/   # 签到系统
+├─ attendance-system/   # 签到系统与测试
 ├─ hello-codex/         # AI 最小程序
 ├─ docs/                # 截图与过程证据
 └─ report/              # 实验报告
 ```
 
-## 签到系统计划功能
+## 已实现功能
 
 - 创建签到活动
 - 学生输入姓名和学号签到
@@ -35,5 +35,7 @@
 - 阻止同一学号重复签到
 - 查看和查询签到记录
 - 导出签到记录
+
+运行方式见 [签到系统说明](./attendance-system/README.md)，AI 最小程序见 [hello-codex](./hello-codex/README.md)，关键步骤见 [过程记录](./docs/过程记录.md)。
 
 > 本实验按要求使用 GitHub 替代 Gitee，使用 Codex 作为 AI 编程 Agent。

@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block title %}{{ event.title }} · 签到系统{% endblock %}
+{% block content %}
+  <div class="page-heading">
+    <div>
+      <a class="back-link" href="{{ url_for('index') }}">← 返回活动列表</a>
+      <p class="eyebrow">EVENT #{{ event.id }}</p>
+      <h1>{{ event.title }}</h1>
+      <p class="lead">创建于 {{ event.created_at }}</p>
+    </div>
+    <div class="count-box"><strong>{{ checkins|length }}</strong><span>已签到</span></div>
+  </div>
+  <section class="card">
+    <h2>提交签到</h2>
+    <form class="form-grid" method="post" action="{{ url_for('checkin', event_id=event.id) }}">
+      <div><label for="student_id">学号</label><input id="student_id" name="student_id" maxlength="30" placeholder="例如：S001" required></div>
+      <div><label for="name">姓名</label><input id="name" name="name" maxlength="30" placeholder="例如：测试学生" required></div>
+      <button type="submit">确认签到</button>
+    </form>
+    <p class="hint">演示时请使用虚构学号和姓名。</p>
+  </section>
+  <section class="section-block">
+    <div class="section-heading"><h2>签到记录</h2><span>按最新时间排序</span></div>
+    {% if checkins %}
+      <div class="table-wrap"><table>
+        <thead><tr><th>学号</th><th>姓名</th><th>签到时间</th></tr></thead>
+        <tbody>{% for item in checkins %}<tr><td>{{ item.student_id }}</td><td>{{ item.name }}</td><td>{{ item.checked_in_at }}</td></tr>{% endfor %}</tbody>
+      </table></div>
+    {% else %}<p class="empty">暂无签到记录。</p>{% endif %}
+  </section>
+{% endblock %}

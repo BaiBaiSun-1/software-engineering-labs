@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block title %}活动列表 · 签到系统{% endblock %}
+{% block content %}
+  <div class="page-heading">
+    <div>
+      <p class="eyebrow">ATTENDANCE</p>
+      <h1>签到活动</h1>
+      <p class="lead">创建活动后，进入活动页面完成签到并查看记录。</p>
+    </div>
+  </div>
+  <section class="card">
+    <h2>创建新活动</h2>
+    <form class="inline-form" method="post" action="{{ url_for('create_event') }}">
+      <label for="title">活动名称</label>
+      <input id="title" name="title" maxlength="80" placeholder="例如：软件工程实验一签到" required>
+      <button type="submit">创建活动</button>
+    </form>
+  </section>
+  <section class="section-block">
+    <div class="section-heading"><h2>已有活动</h2><span>{{ events|length }} 个活动</span></div>
+    {% if events %}
+      <div class="event-list">
+        {% for event in events %}
+          <a class="event-card" href="{{ url_for('event_detail', event_id=event.id) }}">
+            <strong>{{ event.title }}</strong>
+            <span>创建于 {{ event.created_at }}</span>
+            <b>{{ event.checkin_count }} 人签到 →</b>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="empty">还没有活动。先在上方创建一个签到活动。</p>
+    {% endif %}
+  </section>
+{% endblock %}
